@@ -1,6 +1,5 @@
 from datetime import datetime
 import time
-from pprint import pprint
 from urllib.parse import urljoin
 import json
 import re
@@ -9,17 +8,31 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
-BASE_URL = 'https://realtylink.org'
+BASE_URL: str = 'https://realtylink.org'
 
-URL = 'https://realtylink.org/en/properties~for-rent?uc=2'
+URL: str = 'https://realtylink.org/en/properties~for-rent?uc=2'
+
+NUMBER_OF_LINKS: int = 60
 
 # Set a User-Agent header to simulate a browser request
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)\
+     Chrome/91.0.4472.124Safari/537.36'
 }
 
 
-def scrape_rental_links(url: str, max_links: int = 60) -> dict:
+def scrape_rental_links(url: str, max_links: int) -> dict:
+    """
+    The scrape_rental_links function scrapes the rental links from a given url.
+        Args:
+            url (str): The URL to scrape the rental links from.
+            max_links (int): The maximum number of links to scrape.
+
+    :param url: str: Specify the url that we want to scrape
+    :param max_links: int: Limit the number of links to be scraped
+    :return: A dictionary with the keys being 'ad_0', 'ad_2'
+    """
+
     soup = None
     name_link_item = {}
     counter = 0
@@ -31,7 +44,7 @@ def scrape_rental_links(url: str, max_links: int = 60) -> dict:
             # Stay on the page for 5 seconds (you can adjust this as needed)
             time.sleep(5)
 
-            response = requests.get(URL, headers=headers)
+            response = requests.get(url, headers=headers)
 
             print(response.status_code)
 
@@ -53,7 +66,7 @@ def scrape_rental_links(url: str, max_links: int = 60) -> dict:
 
             # Click on the element with class 'next'
             next_button = driver.find_element(By.CLASS_NAME, 'next')
-            if 'inactive' in next_button.get_attribute('class') or counter >= max_links:
+            if 'inactive' in next_button.get_attribute('class') or counter == max_links:
                 print("No more pages or reached maximum links. Exiting.")
                 break  # No more pages or reached maximum links, break out of the loop
 
@@ -76,6 +89,15 @@ def scrape_rental_links(url: str, max_links: int = 60) -> dict:
 
 
 def check(data: dict) -> list:
+    """
+    The check function takes a dictionary of links as input and returns a list of dictionaries.
+    Each dictionary contains the following keys: link, title, address, region, description, img_urls (a list),\
+     date (the current date), price and rooms.
+    The function uses BeautifulSoup to parse the HTML content from each link in order to extract the relevant information.
+
+    :param data: dict: Pass the dictionary of links to the check function
+    :return: The list of dictionaries
+    """
     result_data = []
     for key, link in data.items():
         response = requests.get(link, headers=headers)
@@ -142,7 +164,14 @@ def check(data: dict) -> list:
 
 
 def main():
-    rental_links = scrape_rental_links(url=URL, max_links=60)
+    """
+    The main function is the entry point of the program.
+    It scrapes rental links from a given URL and saves them to a JSON file.
+
+
+    :return: A dictionary with the rental links as keys and a list of dictionaries as values
+    """
+    rental_links = scrape_rental_links(url=URL, max_links=NUMBER_OF_LINKS)
     with open('result_data.json', 'w') as json_file:
         json.dump(check(rental_links), json_file, indent=2)
     print("Data saved to 'result_data.json'")
