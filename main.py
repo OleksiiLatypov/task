@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Dict, Union
 import time
 from pprint import pprint
 from urllib.parse import urljoin
@@ -20,7 +19,7 @@ headers = {
 }
 
 
-def scrape_rental_links(url: str, max_links: int = 60) -> Dict[str, Union[str, int]]:
+def scrape_rental_links(url: str, max_links: int = 60) -> dict:
     soup = None
     name_link_item = {}
     counter = 0
