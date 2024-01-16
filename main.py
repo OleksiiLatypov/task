@@ -59,9 +59,6 @@ def scrape_rental_links(url: str, max_links: int) -> dict:
             # Click on the "Next" button
             next_button.click()
 
-            # Add a fixed duration sleep between clicks to introduce a pause
-            #time.sleep(5)
-
             # Extract links from the current page
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             link_to_items = soup.find_all('a', class_='a-more-detail')
