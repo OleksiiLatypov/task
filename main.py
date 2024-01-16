@@ -1,5 +1,6 @@
 from datetime import datetime
 import time
+from pprint import pprint
 from urllib.parse import urljoin
 import json
 import re
@@ -7,6 +8,8 @@ import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 BASE_URL: str = 'https://realtylink.org'
 
@@ -23,69 +26,67 @@ headers = {
 
 def scrape_rental_links(url: str, max_links: int) -> dict:
     """
-    The scrape_rental_links function scrapes the rental links from a given url.
-        Args:
-            url (str): The URL to scrape the rental links from.
-            max_links (int): The maximum number of links to scrape.
+    The scrape_rental_links function takes an url and max_links as input.
+    It then scrapes the page for links to rental ads, and returns a dictionary of {ad_number: link} pairs.
+    The function will stop scraping when it has reached the maximum number of links or if there are no more pages.
 
-    :param url: str: Specify the url that we want to scrape
-    :param max_links: int: Limit the number of links to be scraped
-    :return: A dictionary with the keys being 'ad_0', 'ad_2'
+    :param url: str: Specify the url of the page to be scraped
+    :param max_links: int: Limit the number of links that are scraped
+    :return: A dictionary with keys as 'ad_0', 'ad_2' and so on
+    :doc-author: Trelent
     """
-
-    soup = None
     name_link_item = {}
+    unique_links = set()
     counter = 0
-    driver = webdriver.Chrome()
 
     try:
+        driver = webdriver.Chrome()
+
         while True:
-            driver.get(URL)
-            # Stay on the page for 5 seconds (you can adjust this as needed)
+
+            driver.get(url)
+
+            # Wait for the "Next" button to be clickable
+            next_button = WebDriverWait(driver, timeout=10).until(
+                EC.element_to_be_clickable((By.CLASS_NAME, 'next'))
+            )
             time.sleep(5)
+            # If the "Next" button is inactive or if the counter has reached the limit, exit the loop
+            if 'inactive' in next_button.get_attribute('class') or counter == max_links:
+                print("No more pages or reached maximum links. Exiting.")
+                break
 
-            response = requests.get(url, headers=headers)
+            # Click on the "Next" button
+            next_button.click()
 
-            print(response.status_code)
+            # Add a fixed duration sleep between clicks to introduce a pause
+            #time.sleep(5)
 
-            # If the request is successful (status code 200), proceed with parsing the HTML
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                print('success')
-            else:
-                print("Failed to retrieve the content. Check if the website allows scraping and adjust headers/"
-                      " accordingly.")
-
+            # Extract links from the current page
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
             link_to_items = soup.find_all('a', class_='a-more-detail')
 
             for link in link_to_items:
-                href_value = link.get('href')
-                if href_value:
-                    name_link_item[f'ad_{counter}'] = urljoin(BASE_URL, href_value)
+                href_value = BASE_URL + link.get('href')
+                if href_value not in unique_links:
+                    name_link_item[f'ad_{counter}'] = href_value
+                    unique_links.add(href_value)
                     counter += 1
 
-            # Click on the element with class 'next'
-            next_button = driver.find_element(By.CLASS_NAME, 'next')
-            if 'inactive' in next_button.get_attribute('class') or counter == max_links:
-                print("No more pages or reached maximum links. Exiting.")
-                break  # No more pages or reached maximum links, break out of the loop
-
-            next_button.click()
-
-            time.sleep(3)  # Optional: Add a delay to wait for the next page to load
-
-        return name_link_item
+                    if counter == max_links:
+                        print("Reached maximum links. Exiting.")
+                        return name_link_item
+            #time.sleep(5)
 
     except Exception as e:
         print("Error occurred:", e)
         return {}
 
     finally:
-        # Add a delay or user input to keep the browser window open
-        if len(name_link_item) == 60:
-            print('60 ads were successfully found')
-            # Close the browser window
-            driver.quit()
+        print('60 ads were successfully found')
+        print('Wait 30-40 seconds to write data to json')
+        time.sleep(20)
+        driver.quit()
 
 
 def check(data: dict) -> list:
@@ -134,12 +135,17 @@ def check(data: dict) -> list:
                 links_for_photos = array_of_photos.find('script').get_text(strip=True)
                 img_urls = re.findall(r'https://[^"]+', links_for_photos)
                 result_entry['img_urls'] = img_urls
+            else:
+                img_urls = 'no images'
+            result_entry['img_urls'] = img_urls
 
-            result_entry['date'] = str(datetime.now())
+            result_entry['date'] = datetime.now().strftime("%d.%m.%Y")
 
             if price_div:
                 price_text = price_div.get_text(strip=True)[2:]
-                result_entry['price'] = price_text
+            else:
+                price_text = 'no price'
+            result_entry['price'] = price_text
 
             if bathrooms_div:
                 bathrooms_number = bathrooms_div.get_text(strip=True)
@@ -155,7 +161,10 @@ def check(data: dict) -> list:
 
             if area_div:
                 area = area_div.find('span').get_text(strip=True)
-                result_entry['area'] = area
+
+            else:
+                area = 'no area'
+            result_entry['area'] = area
 
             result_data.append(result_entry)
         else:
