@@ -76,7 +76,6 @@ def scrape_rental_links(url: str, max_links: int) -> dict:
                     if counter == max_links:
                         print("Reached maximum links. Exiting.")
                         return name_link_item
-            #time.sleep(5)
 
     except Exception as e:
         print("Error occurred:", e)
@@ -84,7 +83,7 @@ def scrape_rental_links(url: str, max_links: int) -> dict:
 
     finally:
         print('60 ads were successfully found')
-        print('Wait 30-40 seconds to write data to json')
+        print('Wait 40-50 seconds to write data to json')
         time.sleep(20)
         driver.quit()
 
